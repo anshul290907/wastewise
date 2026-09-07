@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1788679757680,
+      "tag": "0000_fixed_marauders",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1788771619400,
+      "tag": "0001_overrated_machine_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1788772578982,
+      "tag": "0002_worried_ravenous",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1788793788735,
+      "tag": "0003_far_gravity",
+      "breakpoints": true
+    }
+  ]
+}
