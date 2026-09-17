@@ -1,6 +1,7 @@
 {
   "name": "wastewise",
   "version": "1.0.0",
+  "packageManager": "pnpm@10.22.0",
   "type": "module",
   "license": "MIT",
   "scripts": {
