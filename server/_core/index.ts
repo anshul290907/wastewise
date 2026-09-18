@@ -7,7 +7,6 @@ import { registerGoogleOAuthRoutes } from "../auth/google";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -54,10 +53,14 @@ app.use(
 // Production mode serves the built frontend
 async function configureApp() {
   if (process.env.NODE_ENV === "development") {
+    const { setupVite } = await import("./vite");
+
     const server = createServer(app);
     await setupVite(app, server);
     return server;
   } else {
+    const { serveStatic } = await import("./vite");
+
     serveStatic(app);
     return null;
   }
