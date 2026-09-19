@@ -1,10 +1,10 @@
 import "dotenv/config";
 import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerGoogleOAuthRoutes } from "../server/auth/google";
-import { registerStorageProxy } from "../server/_core/storageProxy";
-import { appRouter } from "../server/routers";
-import { createContext } from "../server/_core/context";
+import { registerGoogleOAuthRoutes } from "../server/auth/google.ts";
+import { registerStorageProxy } from "../server/_core/storageProxy.ts";
+import { appRouter } from "../server/routers.ts";
+import { createContext } from "../server/_core/context.ts";
 
 const app = express();
 
