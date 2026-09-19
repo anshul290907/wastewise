@@ -1,25 +1,3 @@
-import "dotenv/config";
-import express from "express";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerGoogleOAuthRoutes } from "../server/auth/google.ts";
-import { registerStorageProxy } from "../server/_core/storageProxy.ts";
-import { appRouter } from "../server/routers.ts";
-import { createContext } from "../server/_core/context.ts";
+const app = require("./index.cjs");
 
-const app = express();
-
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-registerStorageProxy(app);
-registerGoogleOAuthRoutes(app);
-
-app.use(
-  "/api/trpc",
-  createExpressMiddleware({
-    router: appRouter,
-    createContext,
-  })
-);
-
-export default app;
+module.exports = app;
