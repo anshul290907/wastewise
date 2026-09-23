@@ -46,7 +46,17 @@ const demoLeaderboard = [
 ];
 
 export async function getDb() {
-  if (!_db && ENV.databaseUrl) _db = drizzle(ENV.databaseUrl);
+  if (!_db && ENV.databaseUrl) {
+    _db = drizzle({
+      connection: {
+        uri: ENV.databaseUrl,
+        ssl: {
+          minVersion: "TLSv1.2",
+        },
+      },
+    });
+  }
+
   return _db;
 }
 

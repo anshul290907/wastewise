@@ -55543,7 +55543,16 @@ var demoLeaderboard = [
   { displayName: "Devansh Patel", reportsSubmitted: 17, verifiedContributions: 12, cleanupContributions: 5, otherPoints: 20, totalPoints: 895 }
 ];
 async function getDb() {
-  if (!_db && ENV.databaseUrl) _db = drizzle(ENV.databaseUrl);
+  if (!_db && ENV.databaseUrl) {
+    _db = drizzle({
+      connection: {
+        uri: ENV.databaseUrl,
+        ssl: {
+          minVersion: "TLSv1.2"
+        }
+      }
+    });
+  }
   return _db;
 }
 async function getUserById(id) {
