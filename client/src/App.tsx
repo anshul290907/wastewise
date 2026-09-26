@@ -89,7 +89,8 @@ type StoredReport = {
 };
 
 function storedReportToView(report: StoredReport): Report {
-  const age = Math.max(0, Date.now() - new Date(report.createdAt).getTime());
+  const createdAt = new Date(`${report.createdAt}Z`);
+  const age = Math.max(0, Date.now() - createdAt.getTime());
   const minutes = Math.floor(age / 60_000);
   const time = minutes < 1 ? "Just now" : minutes < 60 ? `${minutes} min ago` : `${Math.floor(minutes / 60)} hr ago`;
   return { id: report.id, issue: report.issue, location: report.location, priority: report.priority, status: report.status, time, reporter: report.reporterName };
