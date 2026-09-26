@@ -296,7 +296,29 @@ function StudentWorkspace({ page, go, notify, points, setPoints, reports, setRep
   return <StudentOverview go={go} notify={notify} points={points} setPoints={setPoints} reports={reports} userName={userName} />;
 }
 
+function getDashboardDateInfo() {
+  const now = new Date();
+  const hour = now.getHours();
+
+  const greeting =
+    hour < 12 ? "Good morning" :
+    hour < 18 ? "Good afternoon" :
+    "Good evening";
+
+  const date = now
+    .toLocaleDateString("en-IN", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    })
+    .toUpperCase();
+
+  return { greeting, date };
+}
+
 function StudentOverview({ go, notify, points, setPoints, reports, userName }: { go: (p: StudentPage) => void; notify: (s: string) => void; points: number; setPoints: React.Dispatch<React.SetStateAction<number>>; reports: Report[]; userName: string }) {
+  const { greeting, date } = getDashboardDateInfo();
   const [activityFilter, setActivityFilter] = useState("All activity");
   const activities = [
     { icon: ScanLine, title: "Plastic bottle classified", detail: "Dry Waste · 96% confidence", time: "Today, 10:42", tone: "sky" },
@@ -305,7 +327,7 @@ function StudentOverview({ go, notify, points, setPoints, reports, userName }: {
     { icon: Users, title: "Cleanliness drive completed", detail: "+20 points earned", time: "Sep 02, 08:30", tone: "mint" },
   ];
   return <>
-    <div className="welcome-row"><div><div className="eyebrow">SATURDAY · 06 SEPTEMBER 2026</div><h1>Good morning, {userName.split(" ")[0]} <span className="wave">✦</span></h1><p>Small actions, cleaner corners. Here’s your campus impact at a glance.</p></div><div className="impact-pill"><div className="impact-ring"><span>78</span><small>/100</small></div><div><strong>Campus cleanliness</strong><span>+8% this month <TrendingUp size={13} /></span></div></div></div>
+    <div className="eyebrow">{date}</div><h1>{greeting}, {userName.split(" ")[0]} <span className="wave">✦</span></h1>
     <div className="stat-grid four"><StatCard label="WasteWise points" value={points.toLocaleString()} detail="Top 18% on campus" icon={Sparkles} tone="amber" trend="+120 · " /><StatCard label="Reports submitted" value="12" detail="3 resolved this month" icon={ClipboardList} tone="coral" trend="+3 · " /><StatCard label="Issues resolved" value="09" detail="75% resolution rate" icon={CheckCircle2} tone="mint" trend="+12% · " /><StatCard label="Monthly contribution" value="18.4 kg" detail="Waste diverted" icon={Recycle} tone="sky" trend="+4.2 kg · " /></div>
     <div className="section-heading"><div><div className="eyebrow">MAKE AN IMPACT</div><h2>What would you like to do?</h2></div><span className="muted-caption">Takes less than 2 minutes</span></div>
     <div className="quick-grid"><QuickAction icon={ClipboardList} label="Report an issue" detail="Flag a campus problem" tone="coral" onClick={() => go("report")} /><QuickAction icon={ScanLine} label="Classify waste" detail="Know your bin in a snap" tone="sky" onClick={() => go("classify")} /><QuickAction icon={MapIcon} label="Find a bin" detail="See nearby collection points" tone="mint" onClick={() => go("bins")} /><QuickAction icon={BookOpen} label="Learn segregation" detail="Build better habits" tone="amber" onClick={() => go("guide")} /></div>
