@@ -66,7 +66,7 @@ import LegalPage from "./pages/LegalPage";
 import PublicHome from "./pages/PublicHome";
 import { MapView } from "./components/Map";
 
-type StudentPage = "overview" | "report" | "classify" | "guide" | "rewards" | "leaderboard" | "campus-map" | "profile";
+type StudentPage = "overview" | "report" | "classify" | "guide" | "rewards" | "leaderboard" | "campus-map" | "profile" | "settings";
 type AdminPage = "overview" | "reports" | "bins" | "collection" | "sanitation" | "analytics" | "users" | "settings";
 type Report = {
   id: string;
@@ -216,14 +216,14 @@ function AuthenticatedApp() {
         </nav>
         <div className="side-bottom">
           <div className="prototype-note"><div className="live-dot" /><div><strong>Report workflow connected</strong><span>Reports saved to campus database</span></div></div>
-          <button className="nav-utility" onClick={() => notify("Settings panel is ready for campus preferences.")}><Settings size={16} /> Settings</button>
+          <button className="nav-utility" onClick={() => role === "student" ? goStudent("settings") : goAdmin("settings")}><Settings size={16} /> Settings</button>
           <button className="nav-utility" onClick={() => void logout()}><LogOut size={16} /> Sign out</button>
         </div>
       </aside>
       <main className="main-area">
         <header className="topbar">
           <button className="icon-button menu-trigger" onClick={() => setMobileNavOpen(true)} aria-label="Open menu"><Menu size={19} /></button>
-          <div className="breadcrumb"><span>WasteWise</span><ChevronRight size={14} /><strong>{role === "student" ? menuStudent.find((item) => item.id === studentPage)?.label : menuAdmin.find((item) => item.id === adminPage)?.label}</strong></div>
+          <div className="breadcrumb"><span>WasteWise</span><ChevronRight size={14} /><strong>{role === "student" ? studentPage === "settings" ? "Settings" : menuStudent.find((item) => item.id === studentPage)?.label : menuAdmin.find((item) => item.id === adminPage)?.label}</strong></div>
           <div className="topbar-actions">
             <div className="campus-select"><span className="status-pip" /> {instituteName} <ChevronDown size={14} /></div>
             <button className="icon-button notification-button" onClick={() => { setShowNotifications((s) => !s); setShowProfile(false); }} aria-label="Notifications"><Bell size={18} /><span /></button>
@@ -269,6 +269,7 @@ function StatCard({ label, value, detail, icon: Icon, tone, trend }: { label: st
 }
 
 function StudentWorkspace({ page, go, notify, points, reports, setReports, userName, userEmail, profileImageUrl, instituteName, instituteSlug }: { page: StudentPage; go: (p: StudentPage) => void; notify: (s: string) => void; points: number; reports: Report[]; setReports: React.Dispatch<React.SetStateAction<Report[]>>; userName: string; userEmail: string; profileImageUrl: string | null; instituteName: string; instituteSlug: string }) {
+  if (page === "settings") return <StudentSettingsPage go={go} userName={userName} userEmail={userEmail} instituteName={instituteName} />;
   if (page === "report") return <ReportPage go={go} notify={notify} setReports={setReports} userName={userName} />;
   if (page === "classify") return <ClassifyPage go={go} notify={notify} />;
 
@@ -408,6 +409,10 @@ function AdminSettingsPage({ instituteName, notify }: { instituteName: string; n
   const utils = trpc.useUtils();
   const update = trpc.institute.update.useMutation({ onSuccess: () => { notify("Institute name updated across WasteWise."); void utils.institute.config.invalidate(); }, onError: (error) => notify(error.message) });
   return <><PageHeader eyebrow="ADMIN / SETTINGS" title="Institute settings" description="Manage the campus identity used throughout the WasteWise experience." /><div className="settings-layout"><section className="panel settings-card"><div className="settings-section"><div className="settings-icon"><Settings size={18} /></div><div><h3>Campus identity</h3><p>Students and administrators will see this name in navigation, reports, maps, leaderboards, and empty states.</p></div></div><label className="settings-field"><span>Institute / campus name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. NSUT, IIT Delhi, DTU" maxLength={160} /><small>Default: NSUT · This setting is stored on the server.</small></label><div className="settings-actions"><span>{name.trim().length}/160 characters</span><button className="button button-primary" disabled={update.isPending || name.trim().length < 2 || name.trim() === instituteName} onClick={() => update.mutate({ name })}>{update.isPending ? "Saving…" : "Save institute name"}</button></div></section><aside className="panel settings-preview"><div className="eyebrow">LIVE PREVIEW</div><div className="settings-preview-brand"><span className="brand-mark"><Recycle size={17} /></span><div><strong>WasteWise</strong><small>SMART CAMPUS OS</small></div></div><div className="settings-preview-campus"><span className="status-pip" /> {name.trim() || "Your institute"}</div><p>Changing this setting updates the campus label without changing source code or user roles.</p></aside></div></>;
+}
+
+function StudentSettingsPage({ go, userName, userEmail, instituteName }: { go: (page: StudentPage) => void; userName: string; userEmail: string; instituteName: string }) {
+  return <><PageHeader eyebrow="ACCOUNT SETTINGS" title="Settings" description="Your account and report update preferences for this WasteWise session." /><div className="settings-layout"><section className="panel settings-card"><div className="settings-section"><div className="settings-icon"><UserRound size={18} /></div><div><h3>Google account</h3><p>Your account details are managed by Google sign-in.</p></div></div><div className="settings-field"><span>Name</span><strong>{userName}</strong></div><div className="settings-field"><span>Email</span><strong>{userEmail}</strong></div><div className="settings-actions"><span>Signed in with Google</span><button className="button button-secondary" onClick={() => go("profile")}>View profile</button></div></section><aside className="panel settings-preview"><div className="eyebrow">CAMPUS & REPORT UPDATES</div><div className="settings-preview-campus"><span className="status-pip" /> {instituteName}</div><p>Report statuses refresh automatically while the app is open. Email and push notifications are not configured.</p><div className="settings-actions"><a className="text-button" href="/privacy">Privacy policy</a><a className="text-button" href="/terms">Terms of service</a></div></aside></div></>;
 }
 
 function ProfilePage({ go, userName, userEmail, profileImageUrl, instituteName, points, reports }: { go: (page: StudentPage) => void; userName: string; userEmail: string; profileImageUrl: string | null; instituteName: string; points: number; reports: Report[] }) {
