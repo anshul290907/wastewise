@@ -39,11 +39,6 @@ const defaultRules = [
   { actionType: "other", points: 5, label: "Other sustainability action" },
 ];
 
-const demoLeaderboard = [
-  { displayName: "Aarav Kapoor", reportsSubmitted: 24, verifiedContributions: 18, cleanupContributions: 7, otherPoints: 15, totalPoints: 1245 },
-  { displayName: "Meera Iyer", reportsSubmitted: 20, verifiedContributions: 15, cleanupContributions: 6, otherPoints: 10, totalPoints: 1035 },
-  { displayName: "Devansh Patel", reportsSubmitted: 17, verifiedContributions: 12, cleanupContributions: 5, otherPoints: 20, totalPoints: 895 },
-];
 
 export async function getDb() {
   if (!_db && ENV.databaseUrl) {
@@ -120,10 +115,7 @@ export async function ensureCampusDefaults() {
   await db.insert(instituteSettings).values({ id: 1, name: "NSUT", slug: "nsut" }).onDuplicateKeyUpdate({ set: { id: 1 } });
   for (const rule of defaultRules) await db.insert(contributionRules).values(rule).onDuplicateKeyUpdate({ set: { points: rule.points, label: rule.label } });
   await db.insert(campusMapConfigs).values({ instituteSlug: "nsut", centerLat: 28.6097, centerLng: 77.0380, zoom: 16, locationsJson: JSON.stringify(nsutMapLocations), sourceUrl: "https://www.nsut.ac.in/en/location", isVerified: false }).onDuplicateKeyUpdate({ set: { instituteSlug: "nsut" } });
-  const existing = await db.select({ id: leaderboardEntries.id }).from(leaderboardEntries).where(eq(leaderboardEntries.isDemo, true)).limit(1);
-  if (!existing[0]) {
-    for (const entry of demoLeaderboard) await db.insert(leaderboardEntries).values({ ...entry, isDemo: true });
-  }
+  await db.delete(leaderboardEntries).where(eq(leaderboardEntries.isDemo, true));
 }
 
 export async function getInstituteSettings(): Promise<InstituteSettings> {
@@ -177,7 +169,7 @@ export async function getLeaderboard() {
   const db = await getDb();
   if (!db) return [] as LeaderboardEntry[];
   await ensureCampusDefaults();
-  return db.select().from(leaderboardEntries).orderBy(desc(leaderboardEntries.totalPoints), asc(leaderboardEntries.displayName));
+  return db.select().from(leaderboardEntries).where(eq(leaderboardEntries.isDemo, false)).orderBy(desc(leaderboardEntries.totalPoints), asc(leaderboardEntries.displayName));
 }
 
 export async function getLeaderboardForUser(user: User) {
