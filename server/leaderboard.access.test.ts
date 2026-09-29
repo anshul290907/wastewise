@@ -40,12 +40,12 @@ describe("leaderboard and institute authorization", () => {
 
   it("rejects institute changes from a student", async () => {
     const caller = appRouter.createCaller(context(user("student")));
-    await expect(caller.institute.update({ name: "IIT Delhi" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.institute.update({ name: "IIT Delhi", centerLat: 28.545, centerLng: 77.192 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("allows an admin to change the institute name", async () => {
     const caller = appRouter.createCaller(context(user("admin")));
-    await expect(caller.institute.update({ name: "IIT Delhi" })).resolves.toMatchObject({ name: "IIT Delhi", slug: "iit-delhi" });
+    await expect(caller.institute.update({ name: "IIT Delhi", centerLat: 28.545, centerLng: 77.192 })).resolves.toMatchObject({ name: "IIT Delhi", slug: "iit-delhi" });
   });
 
   it("loads map data only for an authenticated account", async () => {

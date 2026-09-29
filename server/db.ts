@@ -126,13 +126,33 @@ export async function getInstituteSettings(): Promise<InstituteSettings> {
   return row[0] ?? { id: 1, name: "NSUT", slug: "nsut", updatedAt: new Date() };
 }
 
-export async function updateInstituteSettings(name: string): Promise<InstituteSettings> {
+export async function updateInstituteSettings(name: string, centerLat: number, centerLng: number): Promise<InstituteSettings> {
   const db = await getDb();
   if (!db) throw new Error("Database is not configured");
   const cleanName = name.trim().replace(/\s+/g, " ");
   if (cleanName.length < 2 || cleanName.length > 160) throw new Error("Institute name must be between 2 and 160 characters");
   const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 160) || "campus";
   await db.insert(instituteSettings).values({ id: 1, name: cleanName, slug }).onDuplicateKeyUpdate({ set: { name: cleanName, slug } });
+  const existingMap = await getCampusMapConfig(slug);
+  const centerChanged = existingMap && (Math.abs(existingMap.center.lat - centerLat) > 0.01 || Math.abs(existingMap.center.lng - centerLng) > 0.01);
+  const locations = !existingMap || centerChanged ? [{
+    id: `${slug}-campus-reference`,
+    name: `${cleanName} campus reference`,
+    type: "campus" as const,
+    detail: "Approximate map-search reference point. This is not an official campus boundary or facilities record.",
+    lat: centerLat,
+    lng: centerLng,
+    verified: false,
+  }] : existingMap.locations;
+  await upsertCampusMapConfig({
+    instituteSlug: slug,
+    centerLat,
+    centerLng,
+    zoom: existingMap?.zoom ?? 16,
+    locations,
+    sourceUrl: `https://www.openstreetmap.org/?mlat=${centerLat}&mlon=${centerLng}#map=16/${centerLat}/${centerLng}`,
+    isVerified: false,
+  });
   const row = await db.select().from(instituteSettings).where(eq(instituteSettings.id, 1)).limit(1);
   if (!row[0]) throw new Error("Institute settings could not be saved");
   return row[0];

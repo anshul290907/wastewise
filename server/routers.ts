@@ -23,7 +23,7 @@ export const appRouter = router({
   account: router({ me: protectedProcedure.query(({ ctx }) => ctx.user) }),
   institute: router({
     config: publicProcedure.query(() => getInstituteSettings()),
-    update: adminProcedure.input(z.object({ name: z.string().min(2).max(160) })).mutation(({ input }) => updateInstituteSettings(input.name)),
+    update: adminProcedure.input(z.object({ name: z.string().min(2).max(160), centerLat: z.number().min(6).max(38), centerLng: z.number().min(68).max(98) })).mutation(({ input }) => updateInstituteSettings(input.name, input.centerLat, input.centerLng)),
   }),
   campusMap: router({
     config: protectedProcedure.input(z.object({ instituteSlug: z.string().min(1).max(160) })).query(({ input }) => getCampusMapConfig(input.instituteSlug)),
