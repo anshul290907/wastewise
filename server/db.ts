@@ -76,6 +76,12 @@ export async function getUserByEmail(email: string): Promise<User | undefined> {
   return result[0];
 }
 
+export async function getAdminUserDirectory() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  return db.select({ id: users.id, name: users.name, email: users.email, role: users.role, createdAt: users.createdAt, lastSignedIn: users.lastSignedIn }).from(users).orderBy(asc(users.name));
+}
+
 /** Compatibility helper for generated framework code that is no longer on the request path. */
 export async function upsertUser(input: { openId: string; name?: string | null; email?: string | null; loginMethod?: string | null; lastSignedIn?: Date }) {
   const db = await getDb();
@@ -134,8 +140,10 @@ export async function updateInstituteSettings(name: string, centerLat: number, c
   const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 160) || "campus";
   await db.insert(instituteSettings).values({ id: 1, name: cleanName, slug }).onDuplicateKeyUpdate({ set: { name: cleanName, slug } });
   const existingMap = await getCampusMapConfig(slug);
-  const centerChanged = existingMap && (Math.abs(existingMap.center.lat - centerLat) > 0.01 || Math.abs(existingMap.center.lng - centerLng) > 0.01);
-  const locations = !existingMap || centerChanged ? [{
+  // Always align the campus reference marker with the newly saved center. Keep
+  // any explicitly configured non-campus locations for this institute.
+  const otherLocations = existingMap?.locations.filter((location) => location.type !== "campus") ?? [];
+  const locations = [{
     id: `${slug}-campus-reference`,
     name: `${cleanName} campus reference`,
     type: "campus" as const,
@@ -143,7 +151,7 @@ export async function updateInstituteSettings(name: string, centerLat: number, c
     lat: centerLat,
     lng: centerLng,
     verified: false,
-  }] : existingMap.locations;
+  }, ...otherLocations];
   await upsertCampusMapConfig({
     instituteSlug: slug,
     centerLat,

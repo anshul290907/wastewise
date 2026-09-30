@@ -21,6 +21,8 @@ export function MapView({
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
+  const onMapReadyRef = useRef(onMapReady);
+  onMapReadyRef.current = onMapReady;
 
   useEffect(() => {
     if (!mapContainer.current || map.current) {
@@ -42,13 +44,13 @@ export function MapView({
 
     map.current = leafletMap;
 
-    onMapReady?.(leafletMap);
+    onMapReadyRef.current?.(leafletMap);
 
     return () => {
       leafletMap.remove();
       map.current = null;
     };
-  }, []);
+  }, [initialCenter.lat, initialCenter.lng, initialZoom]);
 
   return (
     <div

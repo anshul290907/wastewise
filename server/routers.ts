@@ -1,7 +1,7 @@
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { clearSessionCookie } from "./auth/session";
 import { ENV } from "./_core/env";
-import { advanceWasteReport, createWasteReport, getCampusMapConfig, getInstituteSettings, getLeaderboard, getWasteReports, recordContribution, updateInstituteSettings, upsertCampusMapConfig } from "./db";
+import { advanceWasteReport, createWasteReport, getAdminUserDirectory, getCampusMapConfig, getInstituteSettings, getLeaderboard, getWasteReports, recordContribution, updateInstituteSettings, upsertCampusMapConfig } from "./db";
 import { z } from "zod";
 
 const mapLocationSchema = z.object({
@@ -40,6 +40,7 @@ export const appRouter = router({
   }),
   admin: router({
     access: adminProcedure.query(({ ctx }) => ({ ok: true as const, userId: ctx.user.id, role: ctx.user.role })),
+    users: adminProcedure.query(() => getAdminUserDirectory()),
   }),
 });
 
