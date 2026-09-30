@@ -1,4 +1,4 @@
-import { boolean, double, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, double, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -17,6 +17,7 @@ export const instituteSettings = mysqlTable("institute_settings", {
   id: int("id").primaryKey(),
   name: varchar("name", { length: 160 }).notNull().default("NSUT"),
   slug: varchar("slug", { length: 160 }).notNull().default("nsut"),
+  studentEmailDomains: varchar("studentEmailDomains", { length: 500 }).notNull().default(""),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
@@ -63,6 +64,7 @@ export const campusMapConfigs = mysqlTable("campus_map_configs", {
 
 export const wasteReports = mysqlTable("waste_reports", {
   id: varchar("id", { length: 40 }).primaryKey(),
+  instituteSlug: varchar("instituteSlug", { length: 160 }).notNull().default("nsut"),
   userId: int("userId").notNull(),
   reporterName: varchar("reporterName", { length: 255 }).notNull(),
   issue: varchar("issue", { length: 160 }).notNull(),
@@ -73,7 +75,7 @@ export const wasteReports = mysqlTable("waste_reports", {
   status: mysqlEnum("status", ["Reported", "Assigned", "In Progress", "Resolved"]).notNull().default("Reported"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => [index("waste_reports_instituteSlug_idx").on(table.instituteSlug)]);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;

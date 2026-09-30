@@ -29,6 +29,13 @@
       "when": 1788793788735,
       "tag": "0003_far_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790726400000,
+      "tag": "0004_campus_scoped_reports",
+      "breakpoints": true
     }
   ]
 }

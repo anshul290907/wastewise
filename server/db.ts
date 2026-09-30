@@ -4,6 +4,7 @@ import { CampusMapConfig, InsertUser, InstituteSettings, LeaderboardEntry, User,
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _campusSchemaReady: Promise<void> | null = null;
 
 export type CampusMapLocation = {
   id: string;
@@ -50,6 +51,31 @@ export async function getDb() {
         },
       },
     });
+  }
+
+  if (_db) {
+    if (!_campusSchemaReady) {
+      _campusSchemaReady = (async () => {
+        const addColumnIfMissing = async (statement: string) => {
+          try {
+            await _db!.execute(sql.raw(statement));
+          } catch (error) {
+            const candidate = error as { code?: string; errno?: number; cause?: { code?: string; errno?: number } };
+            const duplicate = [candidate, candidate.cause].some((item) => item?.code === "ER_DUP_FIELDNAME" || item?.code === "ER_DUP_KEYNAME" || item?.errno === 1060 || item?.errno === 1061);
+            if (!duplicate) throw error;
+          }
+        };
+        await addColumnIfMissing("ALTER TABLE `institute_settings` ADD COLUMN `studentEmailDomains` varchar(500) NOT NULL DEFAULT ''");
+        await addColumnIfMissing("ALTER TABLE `waste_reports` ADD COLUMN `instituteSlug` varchar(160) NOT NULL DEFAULT 'nsut'");
+        await addColumnIfMissing("CREATE INDEX `waste_reports_instituteSlug_idx` ON `waste_reports` (`instituteSlug`)");
+      })();
+    }
+    try {
+      await _campusSchemaReady;
+    } catch (error) {
+      _campusSchemaReady = null;
+      throw error;
+    }
   }
 
   return _db;
@@ -103,7 +129,9 @@ export async function upsertGoogleUser(input: { openId: string; name: string; em
   if (existingByEmail && existingByEmail.openId !== input.openId) throw new Error("A different Google account is already registered with this email");
   const isConfiguredAdmin = ENV.adminEmails.includes(email);
   if (existingByOpenId) {
-    const role = existingByOpenId.role === "admin" || isConfiguredAdmin ? "admin" : "student";
+    // Admin privileges come only from the current server-side allowlist. A
+    // role previously stored in the database must not keep admin access alive.
+    const role = isConfiguredAdmin ? "admin" : "student";
     await db.update(users).set({ name: input.name, email, profileImageUrl: input.profileImageUrl ?? null, role, lastSignedIn: new Date() }).where(and(eq(users.id, existingByOpenId.id), eq(users.openId, input.openId)));
     const updated = await getUserById(existingByOpenId.id);
     if (!updated) throw new Error("User disappeared after update");
@@ -126,19 +154,30 @@ export async function ensureCampusDefaults() {
 
 export async function getInstituteSettings(): Promise<InstituteSettings> {
   const db = await getDb();
-  if (!db) return { id: 1, name: "NSUT", slug: "nsut", updatedAt: new Date() };
+  if (!db) return { id: 1, name: "NSUT", slug: "nsut", studentEmailDomains: "", updatedAt: new Date() };
   await ensureCampusDefaults();
   const row = await db.select().from(instituteSettings).where(eq(instituteSettings.id, 1)).limit(1);
-  return row[0] ?? { id: 1, name: "NSUT", slug: "nsut", updatedAt: new Date() };
+  return row[0] ?? { id: 1, name: "NSUT", slug: "nsut", studentEmailDomains: "", updatedAt: new Date() };
 }
 
-export async function updateInstituteSettings(name: string, centerLat: number, centerLng: number): Promise<InstituteSettings> {
+function normalizeEmailDomains(value: string): string {
+  const domains = Array.from(new Set(value.split(/[\s,;]+/).map((domain) => domain.trim().toLowerCase().replace(/^@+/, "")).filter(Boolean)));
+  for (const domain of domains) {
+    if (!/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(domain)) throw new Error(`Invalid student email domain: ${domain}`);
+  }
+  const result = domains.join(",");
+  if (result.length > 500) throw new Error("Student email domains must fit within 500 characters");
+  return result;
+}
+
+export async function updateInstituteSettings(name: string, centerLat: number, centerLng: number, studentEmailDomains?: string): Promise<InstituteSettings> {
   const db = await getDb();
   if (!db) throw new Error("Database is not configured");
   const cleanName = name.trim().replace(/\s+/g, " ");
   if (cleanName.length < 2 || cleanName.length > 160) throw new Error("Institute name must be between 2 and 160 characters");
+  const cleanDomains = studentEmailDomains === undefined ? (await getInstituteSettings()).studentEmailDomains : normalizeEmailDomains(studentEmailDomains);
   const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 160) || "campus";
-  await db.insert(instituteSettings).values({ id: 1, name: cleanName, slug }).onDuplicateKeyUpdate({ set: { name: cleanName, slug } });
+  await db.insert(instituteSettings).values({ id: 1, name: cleanName, slug, studentEmailDomains: cleanDomains }).onDuplicateKeyUpdate({ set: { name: cleanName, slug, studentEmailDomains: cleanDomains } });
   const existingMap = await getCampusMapConfig(slug);
   // Always align the campus reference marker with the newly saved center. Keep
   // any explicitly configured non-campus locations for this institute.
@@ -225,7 +264,9 @@ export async function recordContribution(user: User, actionType: string) {
 export async function createWasteReport(input: { id: string; user: User; issue: string; location: string; priority: WasteReport["priority"]; description?: string; photoName?: string | null }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not configured");
-  await db.insert(wasteReports).values({ id: input.id, userId: input.user.id, reporterName: input.user.name, issue: input.issue, location: input.location, priority: input.priority, description: input.description || null, photoName: input.photoName ?? null, status: "Reported" });
+  const institute = await getInstituteSettings();
+  if (input.user.role !== "student" || !isEligibleStudentEmail(input.user.email, institute.studentEmailDomains)) throw new Error("Use a verified Google account from this college to submit reports. Ask the administrator to configure the college email domain if needed.");
+  await db.insert(wasteReports).values({ id: input.id, instituteSlug: institute.slug, userId: input.user.id, reporterName: input.user.name, issue: input.issue, location: input.location, priority: input.priority, description: input.description || null, photoName: input.photoName ?? null, status: "Reported" });
   await recordContribution(input.user, "report_submitted");
   const row = await db.select().from(wasteReports).where(eq(wasteReports.id, input.id)).limit(1);
   if (!row[0]) throw new Error("Report was created but could not be loaded");
@@ -235,15 +276,17 @@ export async function createWasteReport(input: { id: string; user: User; issue: 
 export async function getWasteReports(user: User) {
   const db = await getDb();
   if (!db) return [] as WasteReport[];
+  const institute = await getInstituteSettings();
   return user.role === "admin"
-    ? db.select().from(wasteReports).orderBy(desc(wasteReports.createdAt))
-    : db.select().from(wasteReports).where(eq(wasteReports.userId, user.id)).orderBy(desc(wasteReports.createdAt));
+    ? db.select().from(wasteReports).where(eq(wasteReports.instituteSlug, institute.slug)).orderBy(desc(wasteReports.createdAt))
+    : db.select().from(wasteReports).where(and(eq(wasteReports.userId, user.id), eq(wasteReports.instituteSlug, institute.slug))).orderBy(desc(wasteReports.createdAt));
 }
 
 export async function advanceWasteReport(id: string) {
   const db = await getDb();
   if (!db) throw new Error("Database is not configured");
-  const current = (await db.select().from(wasteReports).where(eq(wasteReports.id, id)).limit(1))[0];
+  const institute = await getInstituteSettings();
+  const current = (await db.select().from(wasteReports).where(and(eq(wasteReports.id, id), eq(wasteReports.instituteSlug, institute.slug))).limit(1))[0];
   if (!current) throw new Error("Report not found");
   const nextStatus: WasteReport["status"] = current.status === "Reported" ? "Assigned" : current.status === "Assigned" ? "In Progress" : "Resolved";
   await db.update(wasteReports).set({ status: nextStatus }).where(eq(wasteReports.id, id));
@@ -254,4 +297,13 @@ export async function advanceWasteReport(id: string) {
   const updated = (await db.select().from(wasteReports).where(eq(wasteReports.id, id)).limit(1))[0];
   if (!updated) throw new Error("Report update could not be loaded");
   return updated;
+}
+
+export function isEligibleStudentEmail(email: string, configuredDomains: string): boolean {
+  const normalizedEmail = email.trim().toLowerCase();
+  const at = normalizedEmail.lastIndexOf("@");
+  if (at < 1) return false;
+  const emailDomain = normalizedEmail.slice(at + 1);
+  const domains = configuredDomains.split(/[\s,;]+/).map((domain) => domain.trim().toLowerCase().replace(/^@+/, "")).filter(Boolean);
+  return domains.some((domain) => emailDomain === domain || emailDomain.endsWith(`.${domain}`));
 }

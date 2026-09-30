@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { parse as parseCookieHeader } from "cookie";
 import type { Express, Request, Response } from "express";
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import { upsertGoogleUser } from "../db";
+import { getInstituteSettings, isEligibleStudentEmail, upsertGoogleUser } from "../db";
 import { ENV } from "../_core/env";
 import { createSessionToken, setSessionCookie } from "./session";
 
@@ -130,6 +130,17 @@ export function registerGoogleOAuthRoutes(app: Express) {
       if (!subject || !email || !emailVerified) {
         res.status(403).json({ error: "Google account email is missing or not verified" });
         return;
+      }
+
+      // Keep the configured administrator able to enter settings before a
+      // student domain is configured. Every other account must match the
+      // active college's explicitly configured email domain.
+      if (!ENV.adminEmails.includes(email)) {
+        const institute = await getInstituteSettings();
+        if (!isEligibleStudentEmail(email, institute.studentEmailDomains)) {
+          res.redirect(302, "/app?auth_error=college_email_required");
+          return;
+        }
       }
 
       const user = await upsertGoogleUser({
