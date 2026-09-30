@@ -1,5 +1,5 @@
-// Let Vercel bundle the Express application as an ESM serverless function.
-// A hand-built CommonJS bundle breaks because jose is ESM-only.
-import app from "../server/vercel";
+// Load the ESM bundle produced during the project build. This keeps the
+// existing Express/tRPC app together and supports ESM-only dependencies.
+import app from "./index.mjs";
 
 export default app;
