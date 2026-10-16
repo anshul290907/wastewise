@@ -1,0 +1,16 @@
+{
+  "name": "wastewise-helia-poc",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.22.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@helia/unixfs": "^7.2.1",
+    "helia": "^7.1.14"
+  }
+}
